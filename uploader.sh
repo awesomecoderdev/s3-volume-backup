@@ -35,7 +35,8 @@ fi
 
 # Create zip archive
 log "Creating backup archive: $BACKUP_FILE"
-zip -r "$BACKUP_FILE" "$SOURCE_DIR" -q
+# zip -r "$BACKUP_FILE" "$SOURCE_DIR" -q
+cd "$SOURCE_DIR" && zip -r "$BACKUP_FILE" . -q
 if [ $? -ne 0 ]; then
   log "ERROR: Failed to create backup archive"
   exit 3
@@ -49,7 +50,8 @@ aws s3 cp "$BACKUP_FILE" "$S3_TARGET" \
 
 if [ $? -eq 0 ]; then
   log "Upload successful. Removing local backup file: $BACKUP_FILE"
-  rm -f "$BACKUP_FILE"
+  # rm -f "$BACKUP_FILE"
+  rm -rf "$BACKUP_DIR"
 else
   log "ERROR: Upload failed. Backup file retained: $BACKUP_FILE"
   exit 4
