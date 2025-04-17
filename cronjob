@@ -1,1 +1,2 @@
-0 * * * * /app/uploader.sh >> /var/log/cron.log 2>&1
+# 0 * * * * /app/uploader.sh >> /var/log/cron.log 2>&1
+0 * * * * /bin/bash /app/uploader.sh >> /app/backup/backup.log 2>&1
