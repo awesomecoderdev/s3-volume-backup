@@ -1,27 +1,26 @@
 #!/bin/bash
 
 # Configure paths
+SOURCE_DIR="/app/mysql"
 BACKUP_ROOT="/app/backup"
 DATE_STAMP=$(date +"%d-%m-%Y")
 TIME_STAMP=$(date +"%I-%M-%p")
 BACKUP_DIR="${BACKUP_ROOT}/${DATE_STAMP}"
+FILE_NAME="backup-${TIME_STAMP}.zip"
 SQL_FILE="backup-${TIME_STAMP}.sql"
-ZIP_FILE="backup-${TIME_STAMP}.zip"
-SQL_PATH="${BACKUP_DIR}/${SQL_FILE}"
-ZIP_PATH="${BACKUP_DIR}/${ZIP_FILE}"
-S3_TARGET="s3://${AWS_BUCKET}/backups/${DATE_STAMP}/${ZIP_FILE}"
+BACKUP_FILE="${BACKUP_DIR}/${FILE_NAME}"
+S3_TARGET="s3://${AWS_BUCKET}/backups/${DATE_STAMP}/${FILE_NAME}"
 
-# Log helper
+# Log function for consistent output
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
-# Check required env vars
-if [ -z "$AWS_BUCKET" ] || [ -z "$DB_DATABASE" ] || [ -z "$DB_USERNAME" ]; then
-  log "ERROR: Required environment variables (AWS_BUCKET, DB_DATABASE, DB_USERNAME) not set"
+# Check for required environment variables
+if [ -z "$AWS_BUCKET" ]; then
+  log "ERROR: AWS_BUCKET environment variable is not set"
   exit 1
 fi
-
 
 # Create backup directory if it doesn't exist
 if [ ! -d "$BACKUP_DIR" ]; then
@@ -29,35 +28,34 @@ if [ ! -d "$BACKUP_DIR" ]; then
   mkdir -p "$BACKUP_DIR"
 fi
 
-# Dump MariaDB
-log "[INFO] Dumping database '${DB_DATABASE}'..."
-docker exec mariadb \
-  mariadb-dump -u"$DB_USERNAME" ${DB_PASSWORD:+-p"$DB_PASSWORD"} "$DB_DATABASE" > "$SQL_PATH"
-
-if [ $? -ne 0 ]; then
-  log "ERROR: Failed to dump database"
+# Check if source directory exists and is not empty
+if [ ! -d "$SOURCE_DIR" ] || [ -z "$(ls -A $SOURCE_DIR 2>/dev/null)" ]; then
+  log "ERROR: Source directory '$SOURCE_DIR' does not exist or is empty"
   exit 2
 fi
 
-# Create ZIP archive
-log "[INFO] Creating ZIP archive..."
-cd "$BACKUP_DIR" && zip -q "$ZIP_FILE" "$SQL_FILE" && rm -f "$SQL_FILE"
-
+# Create zip archive
+log "Creating backup archive: $BACKUP_FILE"
+# zip -r "$BACKUP_FILE" "$SOURCE_DIR" -q
+cd "$SOURCE_DIR" && zip -r "$BACKUP_FILE" . -q
 if [ $? -ne 0 ]; then
-  log "ERROR: Failed to zip SQL dump"
+  log "ERROR: Failed to create backup archive"
   exit 3
 fi
 
 # Upload to S3
-log "[INFO] Uploading to S3: $S3_TARGET"
-aws s3 cp "$ZIP_PATH" "$S3_TARGET" --region "$AWS_DEFAULT_REGION" --no-progress
+log "Uploading backup to S3: $S3_TARGET"
+aws s3 cp "$BACKUP_FILE" "$S3_TARGET" \
+  --region "$AWS_DEFAULT_REGION" \
+  --no-progress
 
 if [ $? -eq 0 ]; then
-  log "[INFO] Upload successful. Cleaning up..."
+  log "Upload successful. Removing local backup file: $BACKUP_FILE"
+  # rm -f "$BACKUP_FILE"
   rm -rf "$BACKUP_DIR"
 else
-  log "ERROR: Upload failed. Backup file retained: $ZIP_PATH"
+  log "ERROR: Upload failed. Backup file retained: $BACKUP_FILE"
   exit 4
 fi
 
-log "[SUCCESS] Backup completed at $(date)"
+log "Backup completed successfully"

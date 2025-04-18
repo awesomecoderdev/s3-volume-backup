@@ -1,5 +1,5 @@
 # Define variables
-IMAGE_NAME = awesomecoder/laravel-databse-backup:latest
+IMAGE_NAME = awesomecoder/s3-volume-backup:latest
 PLATFORM = linux/amd64
 
 # Build the Docker image

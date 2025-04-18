@@ -10,12 +10,6 @@ RUN apk add --no-cache \
     cronie \
     aws-cli  # Install AWS CLI via apk to avoid pip issues
 
-# Set environment variables (AWS credentials and bucket info)
-ENV AWS_ACCESS_KEY_ID=
-ENV AWS_SECRET_ACCESS_KEY=
-ENV AWS_DEFAULT_REGION="us-west-1"
-ENV AWS_BUCKET=
-
 # Set work directory
 WORKDIR /app
 
